@@ -1,0 +1,107 @@
+use std::sync::Arc;
+
+use wgpu::ShaderModule;
+
+pub struct State {
+    pub window: Arc<winit::window::Window>,
+    pub instance: wgpu::Instance,
+    pub surface: wgpu::Surface<'static>,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub render_pipeline: wgpu::RenderPipeline,
+}
+
+impl State {
+    pub fn new(window: winit::window::Window) -> Self {
+        let window = Arc::new(window);
+        let window_size = window.inner_size();
+        let instance = wgpu::Instance::default();
+        let surface = instance.create_surface(window.clone()).unwrap();
+        let adapter = create_adapter(&instance, &surface);
+        let surface_config = surface
+            .get_default_config(&adapter, window_size.width, window_size.height)
+            .unwrap();
+
+        let (device, queue) = create_device(&adapter);
+
+        let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl"));
+
+        let render_pipeline = create_render_pipeline_with_fragment(
+            &shader,
+            "vs",
+            "fs",
+            &surface_config,
+            &device,
+            Some("Test triangle pipeline"),
+        );
+
+        State {
+            window,
+            instance,
+            surface,
+            adapter,
+            device,
+            queue,
+            render_pipeline,
+        }
+    }
+
+    pub fn update(&self) {}
+}
+
+fn create_render_pipeline_with_fragment(
+    shader: &ShaderModule,
+    vertex_entry_name: &str,
+    frag_entry_name: &str,
+    surface_config: &wgpu::SurfaceConfiguration,
+    device: &wgpu::Device,
+    label: Option<&str>,
+) -> wgpu::RenderPipeline {
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label,
+        layout: None,
+        vertex: wgpu::VertexState {
+            module: shader,
+            entry_point: vertex_entry_name,
+            compilation_options: Default::default(),
+            buffers: &[],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: shader,
+            entry_point: frag_entry_name,
+            compilation_options: Default::default(),
+            targets: &[Some(wgpu::ColorTargetState {
+                blend: Some(wgpu::BlendState::REPLACE),
+                format: surface_config.format,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multiview: None,
+        multisample: wgpu::MultisampleState::default(),
+    })
+}
+
+fn create_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
+    pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::default(),
+        force_fallback_adapter: false,
+        compatible_surface: Some(surface),
+    }))
+    .unwrap()
+}
+
+fn create_device(adapter: &wgpu::Adapter) -> (wgpu::Device, wgpu::Queue) {
+    pollster::block_on(adapter.request_device(
+        &wgpu::DeviceDescriptor {
+            label: Some("device"),
+            required_features: wgpu::Features::empty(),
+            required_limits:
+                wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
+        },
+        None,
+    ))
+    .unwrap()
+}
