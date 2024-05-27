@@ -17,6 +17,7 @@ impl State {
         let window = Arc::new(window);
         let window_size = window.inner_size();
         let instance = wgpu::Instance::default();
+
         let surface = instance.create_surface(window.clone()).unwrap();
         let adapter = create_adapter(&instance, &surface);
         let surface_config = surface
@@ -24,6 +25,8 @@ impl State {
             .unwrap();
 
         let (device, queue) = create_device(&adapter);
+
+        surface.configure(&device, &surface_config);
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl"));
 
