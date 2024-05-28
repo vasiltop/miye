@@ -10,10 +10,17 @@ pub struct State {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub render_pipeline: wgpu::RenderPipeline,
+    pub surface_config: wgpu::SurfaceConfiguration,
+}
+
+fn t() {
+    let cube = crate::instances::Instance::new(Some("./models/cube.obj"));
+    println!("{:?}", cube);
 }
 
 impl State {
     pub fn new(window: winit::window::Window) -> Self {
+        t();
         let window = Arc::new(window);
         let window_size = window.inner_size();
         let instance = wgpu::Instance::default();
@@ -47,6 +54,7 @@ impl State {
             device,
             queue,
             render_pipeline,
+            surface_config,
         }
     }
 
@@ -99,7 +107,7 @@ fn create_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::A
 fn create_device(adapter: &wgpu::Adapter) -> (wgpu::Device, wgpu::Queue) {
     pollster::block_on(adapter.request_device(
         &wgpu::DeviceDescriptor {
-            label: Some("device"),
+            label: Some("Device"),
             required_features: wgpu::Features::empty(),
             required_limits:
                 wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),

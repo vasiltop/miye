@@ -32,6 +32,13 @@ impl ApplicationHandler for App {
                     renderer::draw(state);
                     state.update();
                 }
+                WindowEvent::Resized(size) => {
+                    state.surface_config.width = size.width;
+                    state.surface_config.height = size.height;
+                    state
+                        .surface
+                        .configure(&state.device, &state.surface_config);
+                }
                 _ => (),
             };
         }

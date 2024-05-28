@@ -752,6 +752,7 @@ dependencies = [
 name = "miye"
 version = "0.1.0"
 dependencies = [
+ "obj-rs",
  "pollster",
  "wgpu",
  "winit",
@@ -845,6 +846,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.66",
+]
+
+[[package]]
+name = "obj-rs"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a502182538a65adc7e3843f820eb5a4bd3ff395017e0ba6e3ccad404e9ea1da3"
+dependencies = [
+ "num-traits",
+ "serde",
 ]
 
 [[package]]

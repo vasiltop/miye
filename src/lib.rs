@@ -1,4 +1,6 @@
 mod app;
+pub mod instances;
+pub mod models;
 mod renderer;
 mod state;
 

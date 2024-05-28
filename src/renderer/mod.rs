@@ -31,7 +31,6 @@ pub fn draw(state: &State) {
         render_pass.set_pipeline(&state.render_pipeline);
         render_pass.draw(0..3, 0..1);
     }
-
     state.queue.submit(Some(encoder.finish()));
     frame.present();
 }
