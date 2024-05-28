@@ -14,6 +14,7 @@ pub fn draw(state: &State) {
         });
 
     fill_vertex_buffer_data(state);
+    let index_count = fill_index_buffer_data(state);
 
     {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -32,16 +33,16 @@ pub fn draw(state: &State) {
         });
 
         render_pass.set_pipeline(&state.render_pipeline);
-        render_pass.draw(0..3, 0..1);
+        render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..index_count as u32, 0, 0..1)
     }
+
     state.queue.submit(Some(encoder.finish()));
     frame.present();
 }
 
 fn fill_vertex_buffer_data(state: &crate::state::State) {
-    let mut vertex_buffer_data = state.vertex_buffer.slice(..).get_mapped_range_mut();
-    vertex_buffer_data.fill(0);
-
     let mut offset = 0;
 
     for instance in &state.instances {
@@ -55,4 +56,19 @@ fn fill_vertex_buffer_data(state: &crate::state::State) {
             offset += slice.len() as u64;
         }
     }
+}
+
+fn fill_index_buffer_data(state: &crate::state::State) -> u64 {
+    let mut offset = 0;
+
+    for instance in &state.instances {
+        if let Some(mesh) = &instance.mesh {
+            let slice = bytemuck::cast_slice(&mesh.indices);
+
+            state.queue.write_buffer(&state.index_buffer, offset, slice);
+            offset += slice.len() as u64;
+        }
+    }
+
+    offset
 }

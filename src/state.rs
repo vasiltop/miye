@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::ShaderModule;
+use wgpu::{ShaderModule, VertexBufferLayout};
 
 pub struct State {
     pub window: Arc<winit::window::Window>,
@@ -13,6 +13,7 @@ pub struct State {
     pub surface_config: wgpu::SurfaceConfiguration,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
+
     pub instances: Vec<crate::instances::Instance>,
 }
 
@@ -41,20 +42,21 @@ impl State {
             &surface_config,
             &device,
             Some("Test triangle pipeline"),
+            &[crate::models::Vertex::desc()],
         );
 
         let vertex_buffer = create_buffer(
             &device,
             Some("Vertex Buffer"),
             1_000_000,
-            wgpu::BufferUsages::MAP_WRITE,
+            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         );
 
         let index_buffer = create_buffer(
             &device,
             Some("Index Buffer"),
-            1_000_000,
-            wgpu::BufferUsages::MAP_WRITE,
+            10_000,
+            wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         );
 
         State {
@@ -68,6 +70,7 @@ impl State {
             surface_config,
             vertex_buffer,
             index_buffer,
+
             instances: Vec::new(),
         }
     }
@@ -91,6 +94,7 @@ fn create_render_pipeline_with_fragment(
     surface_config: &wgpu::SurfaceConfiguration,
     device: &wgpu::Device,
     label: Option<&str>,
+    vertex_buffers: &[VertexBufferLayout],
 ) -> wgpu::RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label,
@@ -99,7 +103,7 @@ fn create_render_pipeline_with_fragment(
             module: shader,
             entry_point: vertex_entry_name,
             compilation_options: Default::default(),
-            buffers: &[],
+            buffers: vertex_buffers,
         },
         fragment: Some(wgpu::FragmentState {
             module: shader,
@@ -135,7 +139,7 @@ fn create_buffer(
 ) -> wgpu::Buffer {
     device.create_buffer(&wgpu::BufferDescriptor {
         label,
-        mapped_at_creation: true,
+        mapped_at_creation: false,
         size,
         usage,
     })
