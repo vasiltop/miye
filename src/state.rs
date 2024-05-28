@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{ShaderModule, VertexBufferLayout};
+use wgpu::{util::DeviceExt, ShaderModule, VertexBufferLayout};
 
 pub struct State {
     pub window: Arc<winit::window::Window>,
@@ -13,8 +13,11 @@ pub struct State {
     pub surface_config: wgpu::SurfaceConfiguration,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
-
+    pub camera: crate::instances::camera::Camera,
     pub instances: Vec<crate::instances::Instance>,
+    pub camera_buffer: wgpu::Buffer,
+    pub camera_uniform: crate::instances::camera::CameraUniform,
+    pub camera_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -35,16 +38,6 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl"));
 
-        let render_pipeline = create_render_pipeline_with_fragment(
-            &shader,
-            "vs",
-            "fs",
-            &surface_config,
-            &device,
-            Some("Test triangle pipeline"),
-            &[crate::models::Vertex::desc()],
-        );
-
         let vertex_buffer = create_buffer(
             &device,
             Some("Vertex Buffer"),
@@ -59,6 +52,59 @@ impl State {
             wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         );
 
+        let camera = crate::instances::camera::Camera::new(&window);
+        let mut camera_uniform = crate::instances::camera::CameraUniform::default();
+        camera_uniform.update_view_proj(&camera);
+
+        let camera_buffer = create_buffer_init(
+            &device,
+            Some("Camera Buffer"),
+            wgpu::BufferUsages::UNIFORM,
+            bytemuck::cast_slice(&[camera_uniform]),
+        );
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Camera Bind Group Layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    count: None,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                }],
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Camera Bind group"),
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let render_pipeline = create_render_pipeline_with_fragment(
+            &shader,
+            "vs",
+            "fs",
+            &surface_config,
+            &device,
+            Some("Test triangle pipeline"),
+            &[crate::models::Vertex::desc()],
+            Some(&render_pipeline_layout),
+        );
+
         State {
             window,
             instance,
@@ -70,14 +116,17 @@ impl State {
             surface_config,
             vertex_buffer,
             index_buffer,
-
+            camera,
+            camera_buffer,
+            camera_uniform,
+            camera_bind_group,
             instances: Vec::new(),
         }
     }
 
     pub fn update(&mut self) {
         if self.instances.is_empty() {
-            self.add_instance(Some("./models/cube.obj"));
+            self.add_instance(Some("./models/cube_small.obj"));
         }
     }
 
@@ -95,10 +144,11 @@ fn create_render_pipeline_with_fragment(
     device: &wgpu::Device,
     label: Option<&str>,
     vertex_buffers: &[VertexBufferLayout],
+    layout: Option<&wgpu::PipelineLayout>,
 ) -> wgpu::RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label,
-        layout: None,
+        layout,
         vertex: wgpu::VertexState {
             module: shader,
             entry_point: vertex_entry_name,
@@ -142,6 +192,19 @@ fn create_buffer(
         mapped_at_creation: false,
         size,
         usage,
+    })
+}
+
+fn create_buffer_init(
+    device: &wgpu::Device,
+    label: Option<&str>,
+    usage: wgpu::BufferUsages,
+    data: &[u8],
+) -> wgpu::Buffer {
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label,
+        usage,
+        contents: bytemuck::cast_slice(data),
     })
 }
 

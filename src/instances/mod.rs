@@ -1,3 +1,5 @@
+pub mod camera;
+
 #[derive(Debug)]
 pub struct Instance {
     pub mesh: Option<obj::Obj>,

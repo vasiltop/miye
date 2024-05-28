@@ -1,6 +1,6 @@
 use crate::state::State;
 
-pub fn draw(state: &State) {
+pub fn draw(state: &mut State) {
     let frame = state.surface.get_current_texture().unwrap();
 
     let view = frame
@@ -32,10 +32,11 @@ pub fn draw(state: &State) {
             occlusion_query_set: None,
         });
 
+        render_pass.set_bind_group(0, &state.camera_bind_group, &[]);
         render_pass.set_pipeline(&state.render_pipeline);
         render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
         render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..index_count as u32, 0, 0..1)
+        render_pass.draw_indexed(0..index_count as u32, 0, 0..1);
     }
 
     state.queue.submit(Some(encoder.finish()));
@@ -48,6 +49,7 @@ fn fill_vertex_buffer_data(state: &crate::state::State) {
     for instance in &state.instances {
         if let Some(mesh) = &instance.mesh {
             let vertices = crate::models::into_vertex_vec(&mesh.vertices);
+
             let slice = bytemuck::cast_slice(&vertices);
 
             state
