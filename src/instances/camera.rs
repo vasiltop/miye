@@ -40,16 +40,25 @@ impl CameraUniform {
 }
 
 impl Camera {
+    pub fn apply_movement(&mut self, movement: Vec3) {
+        self.position += movement;
+    }
+
     pub fn new(window: &winit::window::Window) -> Self {
         let size = window.inner_size();
 
         Camera {
-            position: Vec3::new(0.0, 0.0, -4.0),
+            position: Vec3::new(0.0, 0.0, -1.0),
             yaw: 0.0,
             pitch: 0.0,
             fov: 45.5,
             aspect_ratio: size.width as f32 / size.height as f32,
         }
+    }
+
+    pub fn reconfigure_aspect_ratio(&mut self, window: &winit::window::Window) {
+        let size = window.inner_size();
+        self.aspect_ratio = size.width as f32 / size.height as f32;
     }
 
     pub fn get_view_matrix(&self) -> glam::Mat4 {

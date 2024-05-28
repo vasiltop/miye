@@ -1,4 +1,5 @@
 use obj::{load_obj, Obj};
+use rand::Rng;
 use std::fs::File;
 use std::io::BufReader;
 use std::vec::Vec;
@@ -20,7 +21,11 @@ impl From<&obj::Vertex> for Vertex {
     fn from(value: &obj::Vertex) -> Self {
         Vertex {
             position: value.position,
-            color: [1.0, 0.0, 0.0],
+            color: [
+                value.position[0] / 5.0,
+                value.position[0] / 3.0,
+                value.position[0] / 2.0,
+            ],
         }
     }
 }

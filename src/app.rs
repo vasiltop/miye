@@ -40,6 +40,10 @@ impl ApplicationHandler for App {
                     state
                         .surface
                         .configure(&state.device, &state.surface_config);
+                    state.camera.reconfigure_aspect_ratio(&state.window);
+                }
+                WindowEvent::KeyboardInput { event, .. } => {
+                    crate::input::handle_keyboard_event(event, state)
                 }
                 _ => (),
             };

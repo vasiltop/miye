@@ -1,4 +1,5 @@
 mod app;
+pub mod input;
 pub mod instances;
 pub mod models;
 mod renderer;

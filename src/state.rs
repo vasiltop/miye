@@ -53,13 +53,12 @@ impl State {
         );
 
         let camera = crate::instances::camera::Camera::new(&window);
-        let mut camera_uniform = crate::instances::camera::CameraUniform::default();
-        camera_uniform.update_view_proj(&camera);
+        let camera_uniform = crate::instances::camera::CameraUniform::default();
 
         let camera_buffer = create_buffer_init(
             &device,
             Some("Camera Buffer"),
-            wgpu::BufferUsages::UNIFORM,
+            wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             bytemuck::cast_slice(&[camera_uniform]),
         );
 

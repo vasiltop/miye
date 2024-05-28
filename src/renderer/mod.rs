@@ -16,6 +16,13 @@ pub fn draw(state: &mut State) {
     fill_vertex_buffer_data(state);
     let index_count = fill_index_buffer_data(state);
 
+    state.camera_uniform.update_view_proj(&state.camera);
+    state.queue.write_buffer(
+        &state.camera_buffer,
+        0,
+        bytemuck::cast_slice(&[state.camera_uniform]),
+    );
+
     {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Vertex Render Pass"),
