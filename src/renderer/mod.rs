@@ -12,6 +12,7 @@ pub fn draw(state: &State) {
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Command Encoder"),
         });
+
     {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Vertex Render Pass"),

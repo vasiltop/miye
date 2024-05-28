@@ -13,7 +13,9 @@ impl ApplicationHandler for App {
         let window = event_loop
             .create_window(WindowAttributes::default())
             .unwrap();
-        *self = App::Initialized(State::new(window));
+        let state = State::new(window);
+
+        *self = App::Initialized(state);
     }
 
     fn window_event(

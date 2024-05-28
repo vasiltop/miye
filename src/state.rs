@@ -11,16 +11,12 @@ pub struct State {
     pub queue: wgpu::Queue,
     pub render_pipeline: wgpu::RenderPipeline,
     pub surface_config: wgpu::SurfaceConfiguration,
-}
-
-fn t() {
-    let cube = crate::instances::Instance::new(Some("./models/cube.obj"));
-    println!("{:?}", cube);
+    pub vertex_buffer: wgpu::Buffer,
+    pub instances: Vec<crate::instances::Instance>,
 }
 
 impl State {
     pub fn new(window: winit::window::Window) -> Self {
-        t();
         let window = Arc::new(window);
         let window_size = window.inner_size();
         let instance = wgpu::Instance::default();
@@ -46,6 +42,13 @@ impl State {
             Some("Test triangle pipeline"),
         );
 
+        let vertex_buffer = create_buffer(
+            &device,
+            Some("Vertex Buffer"),
+            1_000_000,
+            wgpu::BufferUsages::MAP_WRITE,
+        );
+
         State {
             window,
             instance,
@@ -55,10 +58,22 @@ impl State {
             queue,
             render_pipeline,
             surface_config,
+            vertex_buffer,
+            instances: Vec::new(),
         }
     }
 
-    pub fn update(&self) {}
+    pub fn update(&mut self) {
+        if self.instances.is_empty() {
+            self.add_instance(Some("./models/cube.obj"));
+            println!("added instance");
+        }
+    }
+
+    pub fn add_instance(&mut self, mesh_path: Option<&str>) {
+        let instance = crate::instances::Instance::new(mesh_path);
+        self.instances.push(instance);
+    }
 }
 
 fn create_render_pipeline_with_fragment(
@@ -102,6 +117,20 @@ fn create_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::A
         compatible_surface: Some(surface),
     }))
     .unwrap()
+}
+
+fn create_buffer(
+    device: &wgpu::Device,
+    label: Option<&str>,
+    size: u64,
+    usage: wgpu::BufferUsages,
+) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label,
+        mapped_at_creation: false,
+        size,
+        usage,
+    })
 }
 
 fn create_device(adapter: &wgpu::Adapter) -> (wgpu::Device, wgpu::Queue) {
