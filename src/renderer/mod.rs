@@ -13,6 +13,8 @@ pub fn draw(state: &State) {
             label: Some("Command Encoder"),
         });
 
+    fill_vertex_buffer_data(state);
+
     {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Vertex Render Pass"),
@@ -34,4 +36,23 @@ pub fn draw(state: &State) {
     }
     state.queue.submit(Some(encoder.finish()));
     frame.present();
+}
+
+fn fill_vertex_buffer_data(state: &crate::state::State) {
+    let mut vertex_buffer_data = state.vertex_buffer.slice(..).get_mapped_range_mut();
+    vertex_buffer_data.fill(0);
+
+    let mut offset = 0;
+
+    for instance in &state.instances {
+        if let Some(mesh) = &instance.mesh {
+            let vertices = crate::models::into_vertex_vec(&mesh.vertices);
+            let slice = bytemuck::cast_slice(&vertices);
+
+            state
+                .queue
+                .write_buffer(&state.vertex_buffer, offset, slice);
+            offset += slice.len() as u64;
+        }
+    }
 }

@@ -12,6 +12,7 @@ pub struct State {
     pub render_pipeline: wgpu::RenderPipeline,
     pub surface_config: wgpu::SurfaceConfiguration,
     pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
     pub instances: Vec<crate::instances::Instance>,
 }
 
@@ -49,6 +50,13 @@ impl State {
             wgpu::BufferUsages::MAP_WRITE,
         );
 
+        let index_buffer = create_buffer(
+            &device,
+            Some("Index Buffer"),
+            1_000_000,
+            wgpu::BufferUsages::MAP_WRITE,
+        );
+
         State {
             window,
             instance,
@@ -59,6 +67,7 @@ impl State {
             render_pipeline,
             surface_config,
             vertex_buffer,
+            index_buffer,
             instances: Vec::new(),
         }
     }
@@ -66,7 +75,6 @@ impl State {
     pub fn update(&mut self) {
         if self.instances.is_empty() {
             self.add_instance(Some("./models/cube.obj"));
-            println!("added instance");
         }
     }
 
@@ -127,7 +135,7 @@ fn create_buffer(
 ) -> wgpu::Buffer {
     device.create_buffer(&wgpu::BufferDescriptor {
         label,
-        mapped_at_creation: false,
+        mapped_at_creation: true,
         size,
         usage,
     })
