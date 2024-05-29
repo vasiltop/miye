@@ -1,4 +1,5 @@
 use crate::state::State;
+use std::ops::Range;
 
 pub fn draw(state: &mut State) {
     let frame = state.surface.get_current_texture().unwrap();
@@ -12,9 +13,6 @@ pub fn draw(state: &mut State) {
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Command Encoder"),
         });
-
-    fill_vertex_buffer_data(state);
-    let index_count = fill_index_buffer_data(state);
 
     state.camera_uniform.update_view_proj(&state.camera);
     state.queue.write_buffer(
@@ -41,43 +39,29 @@ pub fn draw(state: &mut State) {
 
         render_pass.set_bind_group(0, &state.camera_bind_group, &[]);
         render_pass.set_pipeline(&state.render_pipeline);
-        render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..index_count as u32, 0, 0..1);
+        render_pass.draw_mesh(state.instances.first().unwrap().model.mesh.first().unwrap())
     }
 
     state.queue.submit(Some(encoder.finish()));
     frame.present();
 }
 
-fn fill_vertex_buffer_data(state: &crate::state::State) {
-    let mut offset = 0;
-
-    for instance in &state.instances {
-        if let Some(mesh) = &instance.mesh {
-            let vertices = crate::models::into_vertex_vec(&mesh.vertices);
-
-            let slice = bytemuck::cast_slice(&vertices);
-
-            state
-                .queue
-                .write_buffer(&state.vertex_buffer, offset, slice);
-            offset += slice.len() as u64;
-        }
-    }
+pub trait DrawModel<'a> {
+    fn draw_mesh(&mut self, mesh: &'a crate::models::Mesh);
+    fn draw_mesh_instanced(&mut self, mesh: &'a crate::models::Mesh, instances: Range<u32>);
 }
 
-fn fill_index_buffer_data(state: &crate::state::State) -> u64 {
-    let mut offset = 0;
-
-    for instance in &state.instances {
-        if let Some(mesh) = &instance.mesh {
-            let slice = bytemuck::cast_slice(&mesh.indices);
-
-            state.queue.write_buffer(&state.index_buffer, offset, slice);
-            offset += slice.len() as u64;
-        }
+impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
+where
+    'b: 'a,
+{
+    fn draw_mesh(&mut self, mesh: &'b crate::models::Mesh) {
+        self.draw_mesh_instanced(mesh, 0..1)
     }
 
-    offset
+    fn draw_mesh_instanced(&mut self, mesh: &'b crate::models::Mesh, instances: Range<u32>) {
+        self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        self.draw_indexed(0..mesh.num_elements, 0, instances);
+    }
 }

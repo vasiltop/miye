@@ -31,8 +31,8 @@ impl ApplicationHandler for App {
                 }
                 WindowEvent::RedrawRequested => {
                     state.window.request_redraw();
-                    renderer::draw(state);
                     state.update();
+                    renderer::draw(state);
                 }
                 WindowEvent::Resized(size) => {
                     state.surface_config.width = size.width;

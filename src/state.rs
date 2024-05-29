@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{util::DeviceExt, ShaderModule, VertexBufferLayout};
+use wgpu::util::DeviceExt;
 
 pub struct State {
     pub window: Arc<winit::window::Window>,
@@ -11,8 +11,7 @@ pub struct State {
     pub queue: wgpu::Queue,
     pub render_pipeline: wgpu::RenderPipeline,
     pub surface_config: wgpu::SurfaceConfiguration,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
+
     pub camera: crate::instances::camera::Camera,
     pub instances: Vec<crate::instances::Instance>,
     pub camera_buffer: wgpu::Buffer,
@@ -37,20 +36,6 @@ impl State {
         surface.configure(&device, &surface_config);
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl"));
-
-        let vertex_buffer = create_buffer(
-            &device,
-            Some("Vertex Buffer"),
-            1_000_000,
-            wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        );
-
-        let index_buffer = create_buffer(
-            &device,
-            Some("Index Buffer"),
-            10_000,
-            wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-        );
 
         let camera = crate::instances::camera::Camera::new(&window);
         let camera_uniform = crate::instances::camera::CameraUniform::default();
@@ -93,16 +78,33 @@ impl State {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = create_render_pipeline_with_fragment(
-            &shader,
-            "vs",
-            "fs",
-            &surface_config,
-            &device,
-            Some("Test triangle pipeline"),
-            &[crate::models::Vertex::desc()],
-            Some(&render_pipeline_layout),
-        );
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs",
+                compilation_options: Default::default(),
+                buffers: &[crate::models::Vertex::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs",
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    format: surface_config.format,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                cull_mode: None,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multiview: None,
+            multisample: wgpu::MultisampleState::default(),
+        });
 
         State {
             window,
@@ -113,8 +115,7 @@ impl State {
             queue,
             render_pipeline,
             surface_config,
-            vertex_buffer,
-            index_buffer,
+
             camera,
             camera_buffer,
             camera_uniform,
@@ -125,50 +126,14 @@ impl State {
 
     pub fn update(&mut self) {
         if self.instances.is_empty() {
-            self.add_instance(Some("./models/cube_small.obj"));
+            self.add_instance("./models/cube2.obj");
         }
     }
 
-    pub fn add_instance(&mut self, mesh_path: Option<&str>) {
-        let instance = crate::instances::Instance::new(mesh_path);
+    pub fn add_instance(&mut self, mesh_path: &str) {
+        let instance = crate::instances::Instance::new(mesh_path, self);
         self.instances.push(instance);
     }
-}
-
-fn create_render_pipeline_with_fragment(
-    shader: &ShaderModule,
-    vertex_entry_name: &str,
-    frag_entry_name: &str,
-    surface_config: &wgpu::SurfaceConfiguration,
-    device: &wgpu::Device,
-    label: Option<&str>,
-    vertex_buffers: &[VertexBufferLayout],
-    layout: Option<&wgpu::PipelineLayout>,
-) -> wgpu::RenderPipeline {
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label,
-        layout,
-        vertex: wgpu::VertexState {
-            module: shader,
-            entry_point: vertex_entry_name,
-            compilation_options: Default::default(),
-            buffers: vertex_buffers,
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: shader,
-            entry_point: frag_entry_name,
-            compilation_options: Default::default(),
-            targets: &[Some(wgpu::ColorTargetState {
-                blend: Some(wgpu::BlendState::REPLACE),
-                format: surface_config.format,
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multiview: None,
-        multisample: wgpu::MultisampleState::default(),
-    })
 }
 
 fn create_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {
@@ -178,20 +143,6 @@ fn create_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::A
         compatible_surface: Some(surface),
     }))
     .unwrap()
-}
-
-fn create_buffer(
-    device: &wgpu::Device,
-    label: Option<&str>,
-    size: u64,
-    usage: wgpu::BufferUsages,
-) -> wgpu::Buffer {
-    device.create_buffer(&wgpu::BufferDescriptor {
-        label,
-        mapped_at_creation: false,
-        size,
-        usage,
-    })
 }
 
 fn create_buffer_init(

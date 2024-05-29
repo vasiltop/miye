@@ -2,12 +2,13 @@ pub mod camera;
 
 #[derive(Debug)]
 pub struct Instance {
-    pub mesh: Option<obj::Obj>,
+    pub model: crate::models::Model,
 }
 
 impl Instance {
-    pub fn new(mesh_file_path: Option<&str>) -> Self {
-        let mesh = mesh_file_path.map(crate::models::load_model);
-        Instance { mesh }
+    pub fn new(file_path: &str, state: &crate::state::State) -> Self {
+        Self {
+            model: crate::models::load_model(file_path, state),
+        }
     }
 }

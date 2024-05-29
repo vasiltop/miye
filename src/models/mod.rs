@@ -1,13 +1,17 @@
-use obj::{load_obj, Obj};
-use rand::Rng;
-use std::fs::File;
-use std::io::BufReader;
-use std::vec::Vec;
+use rand::prelude::*;
+use wgpu::util::DeviceExt;
 
-pub fn load_model(file_path: &str) -> Obj {
-    let input = BufReader::new(File::open(file_path).unwrap());
-
-    load_obj(input).unwrap()
+pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
+    let (models, _) = tobj::load_obj(
+        file_path,
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    Model::new(models, file_path, &state.device)
 }
 
 #[repr(C)]
@@ -15,23 +19,6 @@ pub fn load_model(file_path: &str) -> Obj {
 pub struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
-}
-
-impl From<&obj::Vertex> for Vertex {
-    fn from(value: &obj::Vertex) -> Self {
-        Vertex {
-            position: value.position,
-            color: [
-                value.position[0] / 5.0,
-                value.position[0] / 3.0,
-                value.position[0] / 2.0,
-            ],
-        }
-    }
-}
-
-pub fn into_vertex_vec(vec: &[obj::Vertex]) -> Vec<Vertex> {
-    vec.iter().map(|v| v.into()).collect()
 }
 
 impl Vertex {
@@ -52,5 +39,63 @@ impl Vertex {
                 },
             ],
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Model {
+    pub mesh: Vec<Mesh>,
+}
+
+#[derive(Debug)]
+pub struct Mesh {
+    pub name: String,
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+    pub num_elements: u32,
+}
+
+impl Model {
+    pub fn new(models: Vec<tobj::Model>, file_name: &str, device: &wgpu::Device) -> Self {
+        let meshes = models
+            .into_iter()
+            .map(|m| {
+                let mut rng = rand::thread_rng();
+                let vertices = (0..m.mesh.positions.len() / 3)
+                    .map(|i| {
+                        let colors = [rng.gen(), rng.gen(), rng.gen()];
+
+                        Vertex {
+                            position: [
+                                m.mesh.positions[i * 3],
+                                m.mesh.positions[i * 3 + 1],
+                                m.mesh.positions[i * 3 + 2],
+                            ],
+                            color: colors,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("{:?} Vertex Buffer", file_name)),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+                let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("{:?} Index Buffer", file_name)),
+                    contents: bytemuck::cast_slice(&m.mesh.indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                });
+
+                Mesh {
+                    name: file_name.to_string(),
+                    vertex_buffer,
+                    index_buffer,
+                    num_elements: m.mesh.indices.len() as u32,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Model { mesh: meshes }
     }
 }
