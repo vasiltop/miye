@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use image::GenericImageView;
 use wgpu::util::DeviceExt;
 
 pub struct State {
@@ -11,12 +12,12 @@ pub struct State {
     pub queue: wgpu::Queue,
     pub render_pipeline: wgpu::RenderPipeline,
     pub surface_config: wgpu::SurfaceConfiguration,
-
     pub camera: crate::instances::camera::Camera,
     pub instances: Vec<crate::instances::Instance>,
     pub camera_buffer: wgpu::Buffer,
     pub camera_uniform: crate::instances::camera::CameraUniform,
     pub camera_bind_group: wgpu::BindGroup,
+    pub texture_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -34,6 +35,94 @@ impl State {
         let (device, queue) = create_device(&adapter);
 
         surface.configure(&device, &surface_config);
+
+        let image_bytes = include_bytes!("../textures/tree.png");
+        let image = image::load_from_memory(image_bytes).unwrap();
+        let image_rgba = image.to_rgba8();
+        let dimensions = image.dimensions();
+
+        let texture_size = wgpu::Extent3d {
+            width: dimensions.0,
+            height: dimensions.1,
+            depth_or_array_layers: 1,
+        };
+
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Texture"),
+            size: texture_size,
+            dimension: wgpu::TextureDimension::D2,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            sample_count: 1,
+            mip_level_count: 1,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &image_rgba,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * dimensions.0),
+                rows_per_image: Some(dimensions.1),
+            },
+            texture_size,
+        );
+
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Texture Bind Group Layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+        let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Texture Bind Group"),
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&texture_sampler),
+                },
+            ],
+        });
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl"));
 
@@ -74,7 +163,7 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&camera_bind_group_layout, &texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -115,12 +204,12 @@ impl State {
             queue,
             render_pipeline,
             surface_config,
-
             camera,
             camera_buffer,
             camera_uniform,
             camera_bind_group,
             instances: Vec::new(),
+            texture_bind_group,
         }
     }
 

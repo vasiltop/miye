@@ -38,6 +38,7 @@ pub fn draw(state: &mut State) {
         });
 
         render_pass.set_bind_group(0, &state.camera_bind_group, &[]);
+        render_pass.set_bind_group(1, &state.texture_bind_group, &[]);
         render_pass.set_pipeline(&state.render_pipeline);
         render_pass.draw_mesh(state.instances.first().unwrap().model.mesh.first().unwrap())
     }

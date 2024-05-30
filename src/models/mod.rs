@@ -1,4 +1,3 @@
-use rand::prelude::*;
 use wgpu::util::DeviceExt;
 
 pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
@@ -18,7 +17,7 @@ pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     position: [f32; 3],
-    color: [f32; 3],
+    tex_coords: [f32; 2],
 }
 
 impl Vertex {
@@ -35,7 +34,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
             ],
         }
@@ -60,19 +59,14 @@ impl Model {
         let meshes = models
             .into_iter()
             .map(|m| {
-                let mut rng = rand::thread_rng();
                 let vertices = (0..m.mesh.positions.len() / 3)
-                    .map(|i| {
-                        let colors = [rng.gen(), rng.gen(), rng.gen()];
-
-                        Vertex {
-                            position: [
-                                m.mesh.positions[i * 3],
-                                m.mesh.positions[i * 3 + 1],
-                                m.mesh.positions[i * 3 + 2],
-                            ],
-                            color: colors,
-                        }
+                    .map(|i| Vertex {
+                        position: [
+                            m.mesh.positions[i * 3],
+                            m.mesh.positions[i * 3 + 1],
+                            m.mesh.positions[i * 3 + 2],
+                        ],
+                        tex_coords: [0.1, 0.2],
                     })
                     .collect::<Vec<_>>();
 
