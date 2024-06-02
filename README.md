@@ -1,4 +1,4 @@
-# Miye Game Engine
+# Miye
 
 Miye is a simple, lightweight .obj model renderer.
 
