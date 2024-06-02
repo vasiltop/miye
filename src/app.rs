@@ -4,18 +4,20 @@ use winit::event::WindowEvent;
 use winit::{application::ApplicationHandler, window::WindowAttributes};
 
 pub enum App {
-    Uninitialized,
+    Uninitialized(fn(&mut State) -> ()),
     Initialized(State),
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = event_loop
-            .create_window(WindowAttributes::default())
-            .unwrap();
-        let state = State::new(window);
+        if let App::Uninitialized(f) = self {
+            let window = event_loop
+                .create_window(WindowAttributes::default())
+                .unwrap();
+            let state = State::new(window, *f);
 
-        *self = App::Initialized(state);
+            *self = App::Initialized(state);
+        }
     }
 
     fn window_event(

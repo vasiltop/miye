@@ -19,10 +19,11 @@ pub struct State {
     pub camera_uniform: crate::instances::camera::CameraUniform,
     pub camera_bind_group: wgpu::BindGroup,
     pub depth_texture: texture::Texture,
+    pub f: fn(&mut State) -> (),
 }
 
 impl State {
-    pub fn new(window: winit::window::Window) -> Self {
+    pub fn new(window: winit::window::Window, f: fn(&mut State) -> ()) -> Self {
         let window = Arc::new(window);
         let window_size = window.inner_size();
         let instance = wgpu::Instance::default();
@@ -154,15 +155,12 @@ impl State {
             camera_bind_group,
             instances: Vec::new(),
             depth_texture,
+            f,
         }
     }
 
     pub fn update(&mut self) {
-        if self.instances.is_empty() {
-            self.add_instance("./models/cube.obj", glam::Vec3::new(0.0, 0.0, 0.0));
-
-            self.add_instance("./models/cube.obj", glam::Vec3::new(5.0, 0.0, 0.0));
-        }
+        (self.f)(self);
     }
 
     pub fn add_instance(&mut self, mesh_path: &str, position: glam::Vec3) {
