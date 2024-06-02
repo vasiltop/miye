@@ -6,9 +6,9 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new(file_path: &str, state: &crate::state::State) -> Self {
+    pub fn new(file_path: &str, state: &crate::state::State, position: glam::Vec3) -> Self {
         Self {
-            model: crate::models::load_model(file_path, state),
+            model: crate::models::load_model(file_path, state, position),
         }
     }
 }

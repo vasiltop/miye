@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
+pub fn load_model(file_path: &str, state: &crate::state::State, position: glam::Vec3) -> Model {
     let (models, materials) = tobj::load_obj(
         file_path,
         &tobj::LoadOptions {
@@ -11,7 +11,14 @@ pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
     )
     .unwrap();
     let materials = materials.unwrap();
-    Model::new(models, file_path, &state.device, &state.queue, materials)
+    Model::new(
+        models,
+        file_path,
+        &state.device,
+        &state.queue,
+        materials,
+        position,
+    )
 }
 
 #[repr(C)]
@@ -71,6 +78,7 @@ impl Model {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         model_materials: Vec<tobj::Material>,
+        position: glam::Vec3,
     ) -> Self {
         let mut materials = Vec::new();
         for m in model_materials {
@@ -133,9 +141,9 @@ impl Model {
                 let vertices = (0..m.mesh.positions.len() / 3)
                     .map(|i| Vertex {
                         position: [
-                            m.mesh.positions[i * 3],
-                            m.mesh.positions[i * 3 + 1],
-                            m.mesh.positions[i * 3 + 2],
+                            m.mesh.positions[i * 3] + position.x,
+                            m.mesh.positions[i * 3 + 1] + position.y,
+                            m.mesh.positions[i * 3 + 2] + position.z,
                         ],
                         tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                     })

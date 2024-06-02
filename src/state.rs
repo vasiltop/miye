@@ -159,12 +159,14 @@ impl State {
 
     pub fn update(&mut self) {
         if self.instances.is_empty() {
-            self.add_instance("./models/cube.obj");
+            self.add_instance("./models/cube.obj", glam::Vec3::new(0.0, 0.0, 0.0));
+
+            self.add_instance("./models/cube.obj", glam::Vec3::new(5.0, 0.0, 0.0));
         }
     }
 
-    pub fn add_instance(&mut self, mesh_path: &str) {
-        let instance = crate::instances::Instance::new(mesh_path, self);
+    pub fn add_instance(&mut self, mesh_path: &str, position: glam::Vec3) {
+        let instance = crate::instances::Instance::new(mesh_path, self, position);
         self.instances.push(instance);
     }
 }
