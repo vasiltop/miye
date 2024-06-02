@@ -45,9 +45,11 @@ pub fn draw(state: &mut State) {
         });
 
         render_pass.set_bind_group(0, &state.camera_bind_group, &[]);
-        render_pass.set_bind_group(1, &state.texture_bind_group, &[]);
         render_pass.set_pipeline(&state.render_pipeline);
-        render_pass.draw_mesh(state.instances.first().unwrap().model.mesh.first().unwrap())
+        let instance = state.instances.first().unwrap();
+        let mesh = instance.model.mesh.first().unwrap();
+        let material = instance.model.material.first().unwrap();
+        render_pass.draw_mesh(mesh, material);
     }
 
     state.queue.submit(Some(encoder.finish()));
@@ -55,21 +57,32 @@ pub fn draw(state: &mut State) {
 }
 
 pub trait DrawModel<'a> {
-    fn draw_mesh(&mut self, mesh: &'a crate::models::Mesh);
-    fn draw_mesh_instanced(&mut self, mesh: &'a crate::models::Mesh, instances: Range<u32>);
+    fn draw_mesh(&mut self, mesh: &'a crate::models::Mesh, material: &'a crate::models::Material);
+    fn draw_mesh_instanced(
+        &mut self,
+        mesh: &'a crate::models::Mesh,
+        instances: Range<u32>,
+        material: &'a crate::models::Material,
+    );
 }
 
 impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_mesh(&mut self, mesh: &'b crate::models::Mesh) {
-        self.draw_mesh_instanced(mesh, 0..1)
+    fn draw_mesh(&mut self, mesh: &'b crate::models::Mesh, material: &'a crate::models::Material) {
+        self.draw_mesh_instanced(mesh, 0..1, material)
     }
 
-    fn draw_mesh_instanced(&mut self, mesh: &'b crate::models::Mesh, instances: Range<u32>) {
+    fn draw_mesh_instanced(
+        &mut self,
+        mesh: &'b crate::models::Mesh,
+        instances: Range<u32>,
+        material: &'b crate::models::Material,
+    ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        self.set_bind_group(1, &material.bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 }

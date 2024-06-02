@@ -1,7 +1,7 @@
 use wgpu::util::DeviceExt;
 
 pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
-    let (models, _) = tobj::load_obj(
+    let (models, materials) = tobj::load_obj(
         file_path,
         &tobj::LoadOptions {
             triangulate: true,
@@ -10,7 +10,8 @@ pub fn load_model(file_path: &str, state: &crate::state::State) -> Model {
         },
     )
     .unwrap();
-    Model::new(models, file_path, &state.device)
+    let materials = materials.unwrap();
+    Model::new(models, file_path, &state.device, &state.queue, materials)
 }
 
 #[repr(C)]
@@ -44,10 +45,14 @@ impl Vertex {
 #[derive(Debug)]
 pub struct Model {
     pub mesh: Vec<Mesh>,
+    pub material: Vec<Material>,
 }
 
+#[derive(Debug)]
 pub struct Material {
     pub name: String,
+    pub texture: crate::texture::Texture,
+    pub bind_group: wgpu::BindGroup,
 }
 
 #[derive(Debug)]
@@ -59,7 +64,68 @@ pub struct Mesh {
 }
 
 impl Model {
-    pub fn new(models: Vec<tobj::Model>, file_name: &str, device: &wgpu::Device) -> Self {
+    pub fn new(
+        models: Vec<tobj::Model>,
+        file_name: &str,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        model_materials: Vec<tobj::Material>,
+    ) -> Self {
+        let mut materials = Vec::new();
+        for m in model_materials {
+            let filename = m.diffuse_texture.unwrap();
+            let filename = filename.split('/').last().unwrap();
+            let image_bytes =
+                std::fs::read(format!("./textures/{}", filename)).expect("Failed to read file");
+
+            let texture =
+                crate::texture::Texture::from_bytes(device, queue, &image_bytes, "Texture");
+
+            let texture_bind_group_layout =
+                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("Texture Bind Group Layout"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ],
+                });
+
+            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Texture Bind Group"),
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&texture.sampler),
+                    },
+                ],
+            });
+
+            materials.push(Material {
+                name: m.name,
+                texture,
+                bind_group,
+            });
+        }
+
         let meshes = models
             .into_iter()
             .map(|m| {
@@ -94,6 +160,9 @@ impl Model {
             })
             .collect::<Vec<_>>();
 
-        Model { mesh: meshes }
+        Model {
+            mesh: meshes,
+            material: materials,
+        }
     }
 }

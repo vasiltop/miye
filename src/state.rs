@@ -18,7 +18,6 @@ pub struct State {
     pub camera_buffer: wgpu::Buffer,
     pub camera_uniform: crate::instances::camera::CameraUniform,
     pub camera_bind_group: wgpu::BindGroup,
-    pub texture_bind_group: wgpu::BindGroup,
     pub depth_texture: texture::Texture,
 }
 
@@ -37,9 +36,6 @@ impl State {
         let (device, queue) = create_device(&adapter);
 
         surface.configure(&device, &surface_config);
-
-        let image_bytes = include_bytes!("../textures/tree.png");
-        let texture = texture::Texture::from_bytes(&device, &queue, image_bytes, "Diffuse Texture");
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -63,21 +59,6 @@ impl State {
                     },
                 ],
             });
-
-        let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Texture Bind Group"),
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-        });
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl"));
 
@@ -172,14 +153,13 @@ impl State {
             camera_uniform,
             camera_bind_group,
             instances: Vec::new(),
-            texture_bind_group,
             depth_texture,
         }
     }
 
     pub fn update(&mut self) {
         if self.instances.is_empty() {
-            self.add_instance("./models/cube2.obj");
+            self.add_instance("./models/cube.obj");
         }
     }
 
