@@ -1,6 +1,6 @@
 # Miye Game Engine
 
-Miye is a simple, lightweight .obj file renderer.
+Miye is a simple, lightweight .obj model renderer.
 
 ## Quick Links
 - [Images](#Images)

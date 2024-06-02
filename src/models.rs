@@ -61,6 +61,7 @@ pub struct Mesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
+    pub material: usize,
 }
 
 impl Model {
@@ -156,6 +157,7 @@ impl Model {
                     vertex_buffer,
                     index_buffer,
                     num_elements: m.mesh.indices.len() as u32,
+                    material: m.mesh.material_id.unwrap_or(0),
                 }
             })
             .collect::<Vec<_>>();

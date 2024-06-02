@@ -1,3 +1,4 @@
+use crate::models::Model;
 use crate::state::State;
 use std::ops::Range;
 
@@ -46,10 +47,9 @@ pub fn draw(state: &mut State) {
 
         render_pass.set_bind_group(0, &state.camera_bind_group, &[]);
         render_pass.set_pipeline(&state.render_pipeline);
-        let instance = state.instances.first().unwrap();
-        let mesh = instance.model.mesh.first().unwrap();
-        let material = instance.model.material.first().unwrap();
-        render_pass.draw_mesh(mesh, material);
+        for i in &state.instances {
+            render_pass.draw_model(&i.model);
+        }
     }
 
     state.queue.submit(Some(encoder.finish()));
@@ -64,6 +64,8 @@ pub trait DrawModel<'a> {
         instances: Range<u32>,
         material: &'a crate::models::Material,
     );
+    fn draw_model(&mut self, model: &'a Model);
+    fn draw_model_instanced(&mut self, model: &'a Model, instances: Range<u32>);
 }
 
 impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a>
@@ -84,5 +86,16 @@ where
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(1, &material.bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
+    }
+
+    fn draw_model(&mut self, model: &'b Model) {
+        self.draw_model_instanced(model, 0..1);
+    }
+
+    fn draw_model_instanced(&mut self, model: &'b Model, instances: Range<u32>) {
+        for mesh in &model.mesh {
+            let material = &model.material[mesh.material];
+            self.draw_mesh_instanced(mesh, instances.clone(), material);
+        }
     }
 }
