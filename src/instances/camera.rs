@@ -42,7 +42,7 @@ impl Camera {
         let size = window.inner_size();
 
         Camera {
-            position: Vec3::new(0.0, 0.0, -1.0),
+            position: Vec3::new(6.0, 2.0, -6.0),
             yaw: 0.0,
             pitch: 0.0,
             fov: 45.5,
