@@ -66,7 +66,7 @@ impl Model {
                             m.mesh.positions[i * 3 + 1],
                             m.mesh.positions[i * 3 + 2],
                         ],
-                        tex_coords: [0.1, 0.2],
+                        tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                     })
                     .collect::<Vec<_>>();
 
