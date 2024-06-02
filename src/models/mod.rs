@@ -46,6 +46,10 @@ pub struct Model {
     pub mesh: Vec<Mesh>,
 }
 
+pub struct Material {
+    pub name: String,
+}
+
 #[derive(Debug)]
 pub struct Mesh {
     pub name: String,

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use image::GenericImageView;
 use wgpu::util::DeviceExt;
+
+use crate::texture;
 
 pub struct State {
     pub window: Arc<winit::window::Window>,
@@ -18,7 +19,7 @@ pub struct State {
     pub camera_uniform: crate::instances::camera::CameraUniform,
     pub camera_bind_group: wgpu::BindGroup,
     pub texture_bind_group: wgpu::BindGroup,
-    pub depth_texture_view: wgpu::TextureView,
+    pub depth_texture: texture::Texture,
 }
 
 impl State {
@@ -38,55 +39,7 @@ impl State {
         surface.configure(&device, &surface_config);
 
         let image_bytes = include_bytes!("../textures/tree.png");
-        let image = image::load_from_memory(image_bytes).unwrap();
-        let image_rgba = image.to_rgba8();
-        let dimensions = image.dimensions();
-
-        //Texture
-        let texture_size = wgpu::Extent3d {
-            width: dimensions.0,
-            height: dimensions.1,
-            depth_or_array_layers: 1,
-        };
-
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Texture"),
-            size: texture_size,
-            dimension: wgpu::TextureDimension::D2,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            sample_count: 1,
-            mip_level_count: 1,
-            view_formats: &[],
-        });
-
-        queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture: &texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            &image_rgba,
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(4 * dimensions.0),
-                rows_per_image: Some(dimensions.1),
-            },
-            texture_size,
-        );
-
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
+        let texture = texture::Texture::from_bytes(&device, &queue, image_bytes, "Diffuse Texture");
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -117,11 +70,11 @@ impl State {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                    resource: wgpu::BindingResource::TextureView(&texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&texture_sampler),
+                    resource: wgpu::BindingResource::Sampler(&texture.sampler),
                 },
             ],
         });
@@ -203,7 +156,7 @@ impl State {
             multisample: wgpu::MultisampleState::default(),
         });
 
-        let depth_texture_view = create_depth_texture(&surface_config, &device);
+        let depth_texture = texture::Texture::create_depth_texture(&surface_config, &device);
 
         State {
             window,
@@ -220,7 +173,7 @@ impl State {
             camera_bind_group,
             instances: Vec::new(),
             texture_bind_group,
-            depth_texture_view,
+            depth_texture,
         }
     }
 
@@ -234,47 +187,6 @@ impl State {
         let instance = crate::instances::Instance::new(mesh_path, self);
         self.instances.push(instance);
     }
-}
-
-pub fn create_depth_texture(
-    surface_config: &wgpu::SurfaceConfiguration,
-    device: &wgpu::Device,
-) -> wgpu::TextureView {
-    let size = wgpu::Extent3d {
-        width: surface_config.width,
-        height: surface_config.height,
-        depth_or_array_layers: 1,
-    };
-
-    let depth_texture_descriptor = wgpu::TextureDescriptor {
-        label: Some("Depth Buffer Descriptor"),
-        size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Depth32Float,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-        view_formats: &[],
-    };
-
-    let depth_texture = device.create_texture(&depth_texture_descriptor);
-
-    let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-    let depth_texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        address_mode_u: wgpu::AddressMode::ClampToEdge,
-        address_mode_v: wgpu::AddressMode::ClampToEdge,
-        address_mode_w: wgpu::AddressMode::ClampToEdge,
-        mag_filter: wgpu::FilterMode::Linear,
-        min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::FilterMode::Nearest,
-        compare: Some(wgpu::CompareFunction::LessEqual),
-        lod_min_clamp: 0.0,
-        lod_max_clamp: 100.0,
-        ..Default::default()
-    });
-
-    depth_texture_view
 }
 
 fn create_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface) -> wgpu::Adapter {

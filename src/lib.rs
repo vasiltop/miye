@@ -4,6 +4,7 @@ pub mod instances;
 pub mod models;
 mod renderer;
 mod state;
+pub mod texture;
 
 pub fn run() {
     let event_loop = winit::event_loop::EventLoop::new().unwrap();

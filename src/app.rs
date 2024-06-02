@@ -40,8 +40,10 @@ impl ApplicationHandler for App {
                     state
                         .surface
                         .configure(&state.device, &state.surface_config);
-                    state.depth_texture_view =
-                        crate::state::create_depth_texture(&state.surface_config, &state.device);
+                    state.depth_texture = crate::texture::Texture::create_depth_texture(
+                        &state.surface_config,
+                        &state.device,
+                    );
                     state.camera.reconfigure_aspect_ratio(&state.window);
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
