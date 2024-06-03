@@ -14,9 +14,7 @@ Miye is a simple, lightweight .obj model renderer.
 ## Installing
 
 ```bash
-git clone https://github.com/vasiltop/miye
-cd miye
-cargo run --example cube
+cargo add miye
 ```
 
 ## Examples
